@@ -1,0 +1,29 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "SkyCrypt Desktop",
+  "version": "0.1.0",
+  "identifier": "me.grish.SkyCrypt-Desktop",
+  "build": {
+    "beforeDevCommand": "pnpm run dev",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "pnpm run build",
+    "frontendDist": "../build"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sky.shiiyu.moe; style-src 'self' 'unsafe-inline' https://sky.shiiyu.moe; img-src 'self' data: https://sky.shiiyu.moe https://mc-heads.net https://crafatar.com https://*.hypixel.net https://i.imgur.com; connect-src 'self' https://sky.shiiyu.moe https://api.slothpixel.gg https://hypixel-api.goofydmn.de; frame-src https://www.youtube.com https://www.youtube-nocookie.com;"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
