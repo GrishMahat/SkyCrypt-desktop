@@ -1,19 +1,26 @@
+#[cfg(not(mobile))]
 use std::net::{TcpStream, ToSocketAddrs};
+#[cfg(not(mobile))]
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
+#[cfg(not(mobile))]
 use std::time::Duration;
-use tauri::{webview::PageLoadEvent, Listener, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Url, WebviewUrl, WebviewWindowBuilder};
+#[cfg(not(mobile))]
+use tauri::{webview::PageLoadEvent, Listener, Manager};
 
 const MAIN_HOST: &str = "sky.shiiyu.moe";
 const MAIN_SCHEME: &str = "https";
+#[cfg(not(mobile))]
 const OFFLINE_RETRY_SECS: u64 = 3;
 
 fn is_allowed_host(host: &str) -> bool {
     host == MAIN_HOST || host.ends_with(".shiiyu.moe")
 }
 
+#[cfg(not(mobile))]
 fn is_online() -> bool {
     let addrs = match (MAIN_HOST, 443).to_socket_addrs() {
         Ok(addrs) => addrs.collect::<Vec<_>>(),
@@ -27,16 +34,24 @@ fn is_online() -> bool {
     false
 }
 
+fn is_blank_url(url: &Url) -> bool {
+    url.as_str() == "about:blank" || url.scheme() == "about"
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(window) = app.get_webview_window("main") {
-                let _: Result<(), _> = window.set_focus();
-            }
-        }))
+    let builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
+    #[cfg(not(mobile))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        if let Some(window) = app.get_webview_window("main") {
+            let _: Result<(), _> = window.set_focus();
+        }
+    }));
+
+    builder
         .setup(|app| {
+            #[cfg(not(mobile))]
+            {
             let app_handle = app.handle().clone();
             let is_hyprland = std::env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok()
                 || std::env::var("XDG_CURRENT_DESKTOP")
@@ -88,6 +103,9 @@ pub fn run() {
                     }
                 })
                 .on_navigation(|url| {
+                    if is_blank_url(url) {
+                        return false;
+                    }
                     let allowed = url.scheme() == MAIN_SCHEME
                         && url.host_str().map(is_allowed_host).unwrap_or(false);
                     if allowed {
@@ -98,6 +116,9 @@ pub fn run() {
                     }
                 })
                 .on_new_window(|url, _features| {
+                    if is_blank_url(&url) {
+                        return tauri::webview::NewWindowResponse::Deny;
+                    }
                     let _ = tauri_plugin_opener::open_url(url.as_str(), None::<&str>);
                     tauri::webview::NewWindowResponse::Deny
                 })
@@ -161,6 +182,38 @@ pub fn run() {
                     }
                 }
             });
+            }
+
+            #[cfg(mobile)]
+            {
+                WebviewWindowBuilder::new(
+                    app,
+                    "main",
+                    WebviewUrl::External(format!("{MAIN_SCHEME}://{MAIN_HOST}").parse().unwrap()),
+                )
+                .on_navigation(|url| {
+                    if is_blank_url(url) {
+                        return false;
+                    }
+                    let allowed = url.scheme() == MAIN_SCHEME
+                        && url.host_str().map(is_allowed_host).unwrap_or(false);
+                    if allowed {
+                        true
+                    } else {
+                        let _ = tauri_plugin_opener::open_url(url.as_str(), None::<&str>);
+                        false
+                    }
+                })
+                .on_new_window(|url, _features| {
+                    if is_blank_url(&url) {
+                        return tauri::webview::NewWindowResponse::Deny;
+                    }
+                    let _ = tauri_plugin_opener::open_url(url.as_str(), None::<&str>);
+                    tauri::webview::NewWindowResponse::Deny
+                })
+                .build()
+                .expect("failed to create mobile webview");
+            }
 
             Ok(())
         })
