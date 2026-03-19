@@ -191,7 +191,12 @@ jobs:
 
       - name: Generate .SRCINFO
         run: |
-          docker run --rm -v "$PWD":/repo -w /repo/AUR archlinux:base-devel bash -lc "pacman -Sy --noconfirm --needed git base-devel && makepkg --printsrcinfo > .SRCINFO"
+          docker run --rm -v "$PWD":/repo archlinux:base-devel bash -lc "\
+            pacman -Sy --noconfirm --needed git base-devel && \
+            useradd -m build && \
+            chown -R build:build /repo/AUR && \
+            su - build -c 'cd /repo/AUR && makepkg --printsrcinfo > .SRCINFO' \
+          "
 
       - name: Publish to AUR (skycrypt)
         uses: KSXGitHub/github-actions-deploy-aur@v3.0.1
@@ -244,7 +249,12 @@ jobs:
 
       - name: Generate .SRCINFO
         run: |
-          docker run --rm -v "$PWD":/repo -w /repo/AUR-bin archlinux:base-devel bash -lc "pacman -Sy --noconfirm --needed git base-devel && makepkg --printsrcinfo > .SRCINFO"
+          docker run --rm -v "$PWD":/repo archlinux:base-devel bash -lc "\
+            pacman -Sy --noconfirm --needed git base-devel && \
+            useradd -m build && \
+            chown -R build:build /repo/AUR-bin && \
+            su - build -c 'cd /repo/AUR-bin && makepkg --printsrcinfo > .SRCINFO' \
+          "
 
       - name: Publish to AUR (skycrypt-bin)
         uses: KSXGitHub/github-actions-deploy-aur@v3.0.1
