@@ -104,8 +104,11 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Sync SvelteKit
+        run: pnpm exec svelte-kit sync
+
       - name: Build Tauri app
-        run: pnpm run tauri build -- --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+        run: pnpm run tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
 
       - name: Upload Linux bundles
         if: runner.os == 'Linux'
