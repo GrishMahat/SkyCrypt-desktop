@@ -226,7 +226,7 @@ jobs:
           sed -i "s/^pkgver=.*/pkgver=${VERSION}/" AUR-bin/PKGBUILD
           sed -i "s/^pkgrel=.*/pkgrel=1/" AUR-bin/PKGBUILD
 
-          DEB_NAME=$(python3 - <<'PY'
+          DEB_NAME=$(VERSION="$VERSION" python3 - <<'PY'
           import json
           import os
           import urllib.request
