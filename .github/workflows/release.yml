@@ -14,7 +14,7 @@ jobs:
         include:
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-            bundles: deb,appimage,rpm
+            bundles: deb,rpm
           - platform: macos-latest
             target: aarch64-apple-darwin
             bundles: dmg
@@ -39,6 +39,36 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 9
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pnpm-store
+            ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Cache Rust toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.rustup
+            ~/.cargo/bin
+          key: ${{ runner.os }}-${{ matrix.target }}-rustup-${{ hashFiles('**/rust-toolchain*') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-rustup-
+
+      - name: Cache Tauri tooling
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/tauri
+            ~/.local/share/tauri
+          key: ${{ runner.os }}-${{ matrix.target }}-tauri-${{ hashFiles('**/package.json', '**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-tauri-
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -118,7 +148,6 @@ jobs:
           path: |
             src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
             src-tauri/target/${{ matrix.target }}/release/bundle/rpm/*.rpm
-            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
           if-no-files-found: warn
 
       - name: Upload macOS bundles
@@ -159,7 +188,6 @@ jobs:
           files: |
             artifacts/**/*.deb
             artifacts/**/*.rpm
-            artifacts/**/*.AppImage
             artifacts/**/*.dmg
             artifacts/**/*.app
             artifacts/**/*.exe
