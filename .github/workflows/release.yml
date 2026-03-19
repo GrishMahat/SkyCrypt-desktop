@@ -77,12 +77,13 @@ jobs:
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
           echo "Syncing version to $VERSION"
-          python3 - <<'PY'
+          VERSION="$VERSION" python3 - <<'PY'
           import json
           import re
           from pathlib import Path
 
-          version = "${VERSION}"
+          import os
+          version = os.environ["VERSION"]
 
           tauri_path = Path("src-tauri/tauri.conf.json")
           tauri = json.loads(tauri_path.read_text())
