@@ -57,13 +57,13 @@ pub fn run() {
             .expect("failed to create splash window");
 
             let main_created = Arc::new(AtomicBool::new(false));
-            let create_main_window = {
+            let create_main_window: Arc<dyn Fn(&tauri::AppHandle) + Send + Sync> = {
                 let main_created = Arc::clone(&main_created);
-                move |app_handle: &tauri::AppHandle| {
+                Arc::new(move |app_handle: &tauri::AppHandle| {
                     if main_created.swap(true, Ordering::SeqCst) {
                         return;
                     }
-                WebviewWindowBuilder::new(
+                    WebviewWindowBuilder::new(
                     app_handle,
                     "main",
                     WebviewUrl::External(format!("{MAIN_SCHEME}://{MAIN_HOST}").parse().unwrap()),
@@ -103,15 +103,16 @@ pub fn run() {
                 })
                 .build()
                 .expect("failed to create window");
-                }
+                })
             };
 
             tauri::async_runtime::spawn_blocking({
                 let app_handle = app_handle.clone();
                 let main_created = Arc::clone(&main_created);
+                let create_main_window = Arc::clone(&create_main_window);
                 move || {
                     if is_online() {
-                        create_main_window(&app_handle);
+                        (create_main_window)(&app_handle);
                         return;
                     }
 
@@ -139,7 +140,7 @@ pub fn run() {
                                 let _ = offline.close();
                             }
                             if !main_created.load(Ordering::SeqCst) {
-                                create_main_window(&app_handle);
+                                (create_main_window)(&app_handle);
                             }
                             break;
                         }
@@ -150,12 +151,13 @@ pub fn run() {
             app_handle.listen("offline-retry", {
                 let app_handle = app_handle.clone();
                 let main_created = Arc::clone(&main_created);
+                let create_main_window = Arc::clone(&create_main_window);
                 move |_| {
                     if is_online() && !main_created.load(Ordering::SeqCst) {
                         if let Some(offline) = app_handle.get_webview_window("offline") {
                             let _ = offline.close();
                         }
-                        create_main_window(&app_handle);
+                        (create_main_window)(&app_handle);
                     }
                 }
             });
