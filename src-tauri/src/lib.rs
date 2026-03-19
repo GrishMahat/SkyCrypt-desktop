@@ -4,6 +4,7 @@ use std::sync::{
     Arc,
 };
 use std::time::Duration;
+use tauri::async_runtime::sleep;
 use tauri::{webview::PageLoadEvent, Listener, Manager, WebviewUrl, WebviewWindowBuilder};
 
 const MAIN_HOST: &str = "sky.shiiyu.moe";
@@ -133,7 +134,7 @@ pub fn run() {
                     .expect("failed to create offline window");
 
                     loop {
-                        tauri::async_runtime::sleep(Duration::from_secs(OFFLINE_RETRY_SECS)).await;
+                        sleep(Duration::from_secs(OFFLINE_RETRY_SECS)).await;
                         if is_online() {
                             if let Some(offline) = app_handle.get_webview_window("offline") {
                                 let _ = offline.close();
