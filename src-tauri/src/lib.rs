@@ -7,14 +7,22 @@ use std::sync::{
 };
 #[cfg(not(mobile))]
 use std::time::Duration;
-use tauri::{Url, WebviewUrl, WebviewWindowBuilder};
+use tauri::{webview::PageLoadEvent, Url, WebviewUrl, WebviewWindowBuilder};
 #[cfg(not(mobile))]
-use tauri::{webview::PageLoadEvent, Listener, Manager};
+use tauri::{Listener, Manager};
 
 const MAIN_HOST: &str = "sky.shiiyu.moe";
 const MAIN_SCHEME: &str = "https";
 #[cfg(not(mobile))]
 const OFFLINE_RETRY_SECS: u64 = 3;
+
+mod injector;
+
+const INTERACTION_OVERRIDE_SCRIPT: &str = "injections/interaction_overrides.js";
+
+fn inject_interaction_overrides(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
+    let _ = injector::inject_from_resource(app, window, INTERACTION_OVERRIDE_SCRIPT);
+}
 
 fn is_allowed_host(host: &str) -> bool {
     host == MAIN_HOST || host.ends_with(".shiiyu.moe")
@@ -94,6 +102,7 @@ pub fn run() {
                     let app_handle = app_handle.clone();
                     move |window, payload| {
                         if payload.event() == PageLoadEvent::Finished {
+                            inject_interaction_overrides(&app_handle, &window);
                             if let Some(splash) = app_handle.get_webview_window("splash") {
                                 let _ = splash.close();
                             }
@@ -186,11 +195,17 @@ pub fn run() {
 
             #[cfg(mobile)]
             {
+                let app_handle = app.handle().clone();
                 WebviewWindowBuilder::new(
                     app,
                     "main",
                     WebviewUrl::External(format!("{MAIN_SCHEME}://{MAIN_HOST}").parse().unwrap()),
                 )
+                .on_page_load(move |window, payload| {
+                    if payload.event() == PageLoadEvent::Finished {
+                        inject_interaction_overrides(&app_handle, window);
+                    }
+                })
                 .on_navigation(|url| {
                     if is_blank_url(url) {
                         return false;

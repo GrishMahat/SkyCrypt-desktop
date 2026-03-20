@@ -17,6 +17,9 @@
   },
   "bundle": {
     "active": true,
+    "resources": [
+      "injections/interaction_overrides.js"
+    ],
     "android": {
       "minSdkVersion": 26
     },
