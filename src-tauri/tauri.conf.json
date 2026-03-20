@@ -18,7 +18,9 @@
   "bundle": {
     "active": true,
     "resources": [
-      "injections/interaction_overrides.js"
+      "injections/interaction_overrides.js",
+      "injections/skycrypt_essentials.js",
+      "injections/skycrypt_enhanced.js"
     ],
     "android": {
       "minSdkVersion": 26

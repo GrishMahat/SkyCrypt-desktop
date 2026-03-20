@@ -18,11 +18,26 @@ const OFFLINE_RETRY_SECS: u64 = 3;
 
 mod injector;
 
+// Injection toggles: keep the scripts available but disabled by default.
+// Uncomment these to re-enable.
 const INTERACTION_OVERRIDE_SCRIPT: &str = "injections/interaction_overrides.js";
+// const ESSENTIAL_SCRIPT: &str = "injections/skycrypt_essentials.js";
+// const ENHANCED_SCRIPT: &str = "injections/skycrypt_enhanced.js";
+// const DEFAULT_THEME: &str = "default.json";
 
 fn inject_interaction_overrides(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
     let _ = injector::inject_from_resource(app, window, INTERACTION_OVERRIDE_SCRIPT);
 }
+
+// fn inject_skycrypt_scripts(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
+//     let _ = injector::inject_from_resource_with_replacements(
+//         app,
+//         window,
+//         ESSENTIAL_SCRIPT,
+//         &[("__SKYCRYPT_THEME__", DEFAULT_THEME)],
+//     );
+//     let _ = injector::inject_from_resource(app, window, ENHANCED_SCRIPT);
+// }
 
 fn is_allowed_host(host: &str) -> bool {
     host == MAIN_HOST || host.ends_with(".shiiyu.moe")
@@ -103,6 +118,7 @@ pub fn run() {
                     move |window, payload| {
                         if payload.event() == PageLoadEvent::Finished {
                             inject_interaction_overrides(&app_handle, &window);
+                            // inject_skycrypt_scripts(&app_handle, &window);
                             if let Some(splash) = app_handle.get_webview_window("splash") {
                                 let _ = splash.close();
                             }
@@ -204,6 +220,7 @@ pub fn run() {
                 .on_page_load(move |window, payload| {
                     if payload.event() == PageLoadEvent::Finished {
                         inject_interaction_overrides(&app_handle, window);
+                        // inject_skycrypt_scripts(&app_handle, window);
                     }
                 })
                 .on_navigation(|url| {
