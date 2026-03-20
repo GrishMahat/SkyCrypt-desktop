@@ -17,6 +17,7 @@ pub fn inject_from_resource(
         .map_err(|err| format!("failed to eval inject script: {err}"))
 }
 
+#[allow(dead_code)]
 pub fn inject_from_resource_with_replacements(
     app: &AppHandle,
     window: &WebviewWindow,
