@@ -31,13 +31,9 @@ struct QuitFlag(AtomicBool);
 struct TrayState(tauri::tray::TrayIcon);
 
 #[cfg(not(mobile))]
-struct LastProfile(Mutex<Option<String>>);
-
-#[cfg(not(mobile))]
 struct TrayMenuItems {
     show: MenuItem<tauri::Wry>,
     hide: MenuItem<tauri::Wry>,
-    last_profile: MenuItem<tauri::Wry>,
     reload: MenuItem<tauri::Wry>,
     quit: MenuItem<tauri::Wry>,
 }
@@ -45,16 +41,18 @@ struct TrayMenuItems {
 // Injection toggles: keep the scripts available but disabled by default.
 // Uncomment these to re-enable.
 const INTERACTION_OVERRIDE_SCRIPT: &str = "injections/interaction_overrides.js";
-// const ENHANCED_SCRIPT: &str = "injections/skycrypt_enhanced.js";
+const ENHANCED_SCRIPT: &str = "injections/skycrypt_enhanced.js";
+const ESSENTIALS_SCRIPT: &str = "injections/skycrypt_essentials.js";
 // const DEFAULT_THEME: &str = "default.json";
 
 fn inject_interaction_overrides(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
     let _ = injector::inject_from_resource(app, window, INTERACTION_OVERRIDE_SCRIPT);
 }
 
-// fn inject_skycrypt_scripts(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
-//     let _ = injector::inject_from_resource(app, window, ENHANCED_SCRIPT);
-// }
+fn inject_skycrypt_scripts(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
+    let _ = injector::inject_from_resource(app, window, ESSENTIALS_SCRIPT);
+    let _ = injector::inject_from_resource(app, window, ENHANCED_SCRIPT);
+}
 
 fn is_allowed_host(host: &str) -> bool {
     host == MAIN_HOST || host.ends_with(".shiiyu.moe")
@@ -137,19 +135,11 @@ fn is_main_visible(app: &tauri::AppHandle) -> bool {
 #[cfg(not(mobile))]
 fn update_tray_menu(app: &tauri::AppHandle) {
     let visible = is_main_visible(app);
-    let last_exists = app
-        .state::<LastProfile>()
-        .0
-        .lock()
-        .ok()
-        .and_then(|guard| guard.clone())
-        .is_some();
 
     let items = app.state::<TrayMenuItems>();
     let _ = items.show.set_enabled(!visible);
     let _ = items.hide.set_enabled(visible);
     let _ = items.reload.set_enabled(visible);
-    let _ = items.last_profile.set_enabled(visible && last_exists);
     let _ = items.quit.set_enabled(true);
 }
 
@@ -168,18 +158,9 @@ pub fn run() {
             #[cfg(not(mobile))]
             {
                 app.manage(QuitFlag::default());
-                app.manage(LastProfile(Mutex::new(None)));
-
                 let menu = Menu::new(app)?;
                 let tray_show = MenuItem::with_id(app, "tray_show", "Show", true, None::<&str>)?;
                 let tray_hide = MenuItem::with_id(app, "tray_hide", "Hide", true, None::<&str>)?;
-                let tray_last_profile = MenuItem::with_id(
-                    app,
-                    "tray_last_profile",
-                    "Open Last Profile",
-                    true,
-                    None::<&str>,
-                )?;
                 let tray_reload =
                     MenuItem::with_id(app, "tray_reload", "Reload", true, None::<&str>)?;
                 let tray_quit = MenuItem::with_id(app, "tray_quit", "Quit", true, None::<&str>)?;
@@ -187,7 +168,6 @@ pub fn run() {
 
                 menu.append(&tray_show)?;
                 menu.append(&tray_hide)?;
-                menu.append(&tray_last_profile)?;
                 menu.append(&tray_reload)?;
                 menu.append(&tray_sep)?;
                 menu.append(&tray_quit)?;
@@ -202,25 +182,6 @@ pub fn run() {
                         }
                         "tray_hide" => {
                             hide_main_window(app);
-                        }
-                        "tray_last_profile" => {
-                            let last_url = {
-                                let last = app.state::<LastProfile>();
-                                last.0.lock().ok().and_then(|guard| guard.clone())
-                            };
-                            if let Some(url) = last_url.as_ref() {
-                                if let Some(window) = app.get_webview_window("main") {
-                                    if let Ok(url) = Url::parse(url) {
-                                        let _ = window.navigate(url);
-                                    }
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                } else {
-                                    show_main_window(app);
-                                }
-                            } else {
-                                show_main_window(app);
-                            }
                         }
                         "tray_reload" => {
                             if let Some(window) = app.get_webview_window("main") {
@@ -268,7 +229,6 @@ pub fn run() {
                 app.manage(TrayMenuItems {
                     show: tray_show,
                     hide: tray_hide,
-                    last_profile: tray_last_profile,
                     reload: tray_reload,
                     quit: tray_quit,
                 });
@@ -319,7 +279,7 @@ pub fn run() {
                             move |window, payload| {
                                 if payload.event() == PageLoadEvent::Finished {
                                     inject_interaction_overrides(&app_handle, &window);
-                                    // inject_skycrypt_scripts(&app_handle, &window);
+                                    inject_skycrypt_scripts(&app_handle, &window);
                                 if let Some(splash) = app_handle.get_webview_window("splash")
                                 {
                                     let _ = splash.close();
@@ -339,14 +299,6 @@ pub fn run() {
                                 let allowed = url.scheme() == MAIN_SCHEME
                                     && url.host_str().map(is_allowed_host).unwrap_or(false);
                                 if allowed {
-                                    if url.path().starts_with("/stats/") {
-                                        if let Ok(mut last) =
-                                            app_handle.state::<LastProfile>().0.lock()
-                                        {
-                                            *last = Some(url.as_str().to_string());
-                                            update_tray_menu(&app_handle);
-                                        }
-                                    }
                                     true
                                 } else {
                                     let _ =
@@ -439,23 +391,6 @@ pub fn run() {
                     }
                 });
 
-                app_handle.listen("skycrypt-url", {
-                    let app_handle = app_handle.clone();
-                    move |event| {
-                        let payload = event.payload();
-                        if let Ok(url) = Url::parse(payload) {
-                            if url.scheme() == MAIN_SCHEME
-                                && url.host_str().map(is_allowed_host).unwrap_or(false)
-                                && url.path().starts_with("/stats/")
-                            {
-                                if let Ok(mut last) = app_handle.state::<LastProfile>().0.lock() {
-                                    *last = Some(url.as_str().to_string());
-                                    update_tray_menu(&app_handle);
-                                }
-                            }
-                        }
-                    }
-                });
             }
 
             #[cfg(mobile)]
@@ -469,7 +404,7 @@ pub fn run() {
                 .on_page_load(move |window, payload| {
                     if payload.event() == PageLoadEvent::Finished {
                         inject_interaction_overrides(&app_handle, window);
-                        // inject_skycrypt_scripts(&app_handle, window);
+                        inject_skycrypt_scripts(&app_handle, window);
                     }
                 })
                 .on_navigation(|url| {

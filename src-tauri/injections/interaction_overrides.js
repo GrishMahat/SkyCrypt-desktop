@@ -35,35 +35,4 @@
     }
   }, { capture: true });
 
-  if (document.documentElement.hasAttribute('data-skycrypt-url-tracker')) {
-    return;
-  }
-  document.documentElement.setAttribute('data-skycrypt-url-tracker', 'true');
-
-  const emitUrl = () => {
-    try {
-      const emit = window.__TAURI__ && window.__TAURI__.event && window.__TAURI__.event.emit;
-      if (typeof emit === 'function') {
-        emit('skycrypt-url', window.location.href);
-      }
-    } catch {
-      // no-op
-    }
-  };
-
-  const patchHistory = (method) => {
-    const original = history[method];
-    if (typeof original !== 'function') return;
-    history[method] = function (...args) {
-      const result = original.apply(this, args);
-      emitUrl();
-      return result;
-    };
-  };
-
-  patchHistory('pushState');
-  patchHistory('replaceState');
-  window.addEventListener('popstate', emitUrl);
-  window.addEventListener('hashchange', emitUrl);
-  emitUrl();
 })();
