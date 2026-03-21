@@ -4,7 +4,6 @@ use std::net::{TcpStream, ToSocketAddrs};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
-    Mutex,
 };
 #[cfg(not(mobile))]
 use std::time::Duration;
@@ -28,6 +27,7 @@ mod injector;
 struct QuitFlag(AtomicBool);
 
 #[cfg(not(mobile))]
+#[allow(dead_code)]
 struct TrayState(tauri::tray::TrayIcon);
 
 #[cfg(not(mobile))]
@@ -291,7 +291,6 @@ pub fn run() {
                         }
                     })
                         .on_navigation({
-                            let app_handle = app_handle.clone();
                             move |url| {
                                 if is_blank_url(url) {
                                     return false;
