@@ -15,6 +15,7 @@
     "core:window:allow-maximize",
     "core:window:allow-unmaximize",
     "core:window:allow-is-maximized",
+    "core:webview:allow-internal-toggle-devtools",
     "opener:default"
   ]
 }
