@@ -7,11 +7,11 @@ use std::sync::{
 };
 #[cfg(not(mobile))]
 use std::time::Duration;
-use tauri::{webview::PageLoadEvent, Url, WebviewUrl, WebviewWindowBuilder};
 #[cfg(not(mobile))]
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 #[cfg(not(mobile))]
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{webview::PageLoadEvent, Url, WebviewUrl, WebviewWindowBuilder};
 #[cfg(not(mobile))]
 use tauri::{Listener, Manager, WindowEvent};
 
@@ -103,43 +103,12 @@ fn hide_main_window(app: &tauri::AppHandle) {
 }
 
 #[cfg(not(mobile))]
-fn is_main_focused(app: &tauri::AppHandle) -> bool {
-    if let Some(window) = app.get_webview_window("main") {
-        if let Ok(true) = window.is_focused() {
-            return true;
-        }
-    }
-    if let Some(window) = app.get_webview_window("offline") {
-        if let Ok(true) = window.is_focused() {
-            return true;
-        }
-    }
-    false
-}
-
-#[cfg(not(mobile))]
-fn is_main_visible(app: &tauri::AppHandle) -> bool {
-    if let Some(window) = app.get_webview_window("main") {
-        if let Ok(true) = window.is_visible() {
-            return true;
-        }
-    }
-    if let Some(window) = app.get_webview_window("offline") {
-        if let Ok(true) = window.is_visible() {
-            return true;
-        }
-    }
-    false
-}
-
 #[cfg(not(mobile))]
 fn update_tray_menu(app: &tauri::AppHandle) {
-    let visible = is_main_visible(app);
-
     let items = app.state::<TrayMenuItems>();
-    let _ = items.show.set_enabled(!visible);
-    let _ = items.hide.set_enabled(visible);
-    let _ = items.reload.set_enabled(visible);
+    let _ = items.show.set_enabled(true);
+    let _ = items.hide.set_enabled(true);
+    let _ = items.reload.set_enabled(true);
     let _ = items.quit.set_enabled(true);
 }
 
@@ -175,7 +144,6 @@ pub fn run() {
                 let mut tray_builder = TrayIconBuilder::new()
                     .menu(&menu)
                     .tooltip("SkyCrypt Desktop")
-                    .show_menu_on_left_click(false)
                     .on_menu_event(|app, event| match event.id().as_ref() {
                         "tray_show" => {
                             show_main_window(app);
@@ -205,19 +173,6 @@ pub fn run() {
                             let app = tray.app_handle();
                             show_main_window(app);
                         }
-                        if let TrayIconEvent::Click {
-                            button: MouseButton::Right,
-                            button_state: MouseButtonState::Up,
-                            ..
-                        } = event
-                        {
-                            let app = tray.app_handle();
-                            let focused = is_main_focused(app);
-                            let visible = is_main_visible(app);
-                            if !focused || !visible {
-                                show_main_window(app);
-                            }
-                        }
                     });
 
                 if let Some(icon) = app.default_window_icon().cloned() {
@@ -240,18 +195,15 @@ pub fn run() {
                         .map(|v| v.to_lowercase().contains("hyprland"))
                         .unwrap_or(false);
 
-                let _splash = WebviewWindowBuilder::new(
-                    app,
-                    "splash",
-                    WebviewUrl::App("index.html".into()),
-                )
-                .title("SkyCrypt Desktop")
-                .inner_size(420.0, 260.0)
-                .resizable(false)
-                .decorations(false)
-                .center()
-                .build()
-                .expect("failed to create splash window");
+                let _splash =
+                    WebviewWindowBuilder::new(app, "splash", WebviewUrl::App("index.html".into()))
+                        .title("SkyCrypt Desktop")
+                        .inner_size(420.0, 260.0)
+                        .resizable(false)
+                        .decorations(false)
+                        .center()
+                        .build()
+                        .expect("failed to create splash window");
 
                 let main_created = Arc::new(AtomicBool::new(false));
                 let create_main_window: Arc<dyn Fn(&tauri::AppHandle) + Send + Sync> = {
@@ -280,16 +232,15 @@ pub fn run() {
                                 if payload.event() == PageLoadEvent::Finished {
                                     inject_interaction_overrides(&app_handle, &window);
                                     inject_skycrypt_scripts(&app_handle, &window);
-                                if let Some(splash) = app_handle.get_webview_window("splash")
-                                {
-                                    let _ = splash.close();
+                                    if let Some(splash) = app_handle.get_webview_window("splash") {
+                                        let _ = splash.close();
+                                    }
+                                    let _ = window.show();
+                                    let _ = window.set_focus();
+                                    update_tray_menu(&app_handle);
                                 }
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                                update_tray_menu(&app_handle);
                             }
-                        }
-                    })
+                        })
                         .on_navigation({
                             move |url| {
                                 if is_blank_url(url) {
@@ -334,47 +285,47 @@ pub fn run() {
                     })
                 };
 
-            tauri::async_runtime::spawn_blocking({
-                let app_handle = app_handle.clone();
-                let main_created = Arc::clone(&main_created);
-                let create_main_window = Arc::clone(&create_main_window);
-                move || {
-                    if is_online() {
-                        (create_main_window)(&app_handle);
-                        return;
-                    }
-
-                    if let Some(splash) = app_handle.get_webview_window("splash") {
-                        let _ = splash.close();
-                    }
-
-                    let _offline = WebviewWindowBuilder::new(
-                        &app_handle,
-                        "offline",
-                        WebviewUrl::App("offline".into()),
-                    )
-                    .title("SkyCrypt Desktop")
-                    .inner_size(520.0, 320.0)
-                    .resizable(false)
-                    .decorations(false)
-                    .center()
-                    .build()
-                    .expect("failed to create offline window");
-
-                    loop {
-                        std::thread::sleep(Duration::from_secs(OFFLINE_RETRY_SECS));
+                tauri::async_runtime::spawn_blocking({
+                    let app_handle = app_handle.clone();
+                    let main_created = Arc::clone(&main_created);
+                    let create_main_window = Arc::clone(&create_main_window);
+                    move || {
                         if is_online() {
-                            if let Some(offline) = app_handle.get_webview_window("offline") {
-                                let _ = offline.close();
+                            (create_main_window)(&app_handle);
+                            return;
+                        }
+
+                        if let Some(splash) = app_handle.get_webview_window("splash") {
+                            let _ = splash.close();
+                        }
+
+                        let _offline = WebviewWindowBuilder::new(
+                            &app_handle,
+                            "offline",
+                            WebviewUrl::App("offline".into()),
+                        )
+                        .title("SkyCrypt Desktop")
+                        .inner_size(520.0, 320.0)
+                        .resizable(false)
+                        .decorations(false)
+                        .center()
+                        .build()
+                        .expect("failed to create offline window");
+
+                        loop {
+                            std::thread::sleep(Duration::from_secs(OFFLINE_RETRY_SECS));
+                            if is_online() {
+                                if let Some(offline) = app_handle.get_webview_window("offline") {
+                                    let _ = offline.close();
+                                }
+                                if !main_created.load(Ordering::SeqCst) {
+                                    (create_main_window)(&app_handle);
+                                }
+                                break;
                             }
-                            if !main_created.load(Ordering::SeqCst) {
-                                (create_main_window)(&app_handle);
-                            }
-                            break;
                         }
                     }
-                }
-            });
+                });
 
                 app_handle.listen("offline-retry", {
                     let app_handle = app_handle.clone();
@@ -389,7 +340,6 @@ pub fn run() {
                         }
                     }
                 });
-
             }
 
             #[cfg(mobile)]

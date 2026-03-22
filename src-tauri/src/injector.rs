@@ -10,8 +10,8 @@ pub fn inject_from_resource(
         .path()
         .resolve(resource_path, BaseDirectory::Resource)
         .map_err(|err| format!("failed to resolve resource path: {err}"))?;
-    let script = fs::read_to_string(&path)
-        .map_err(|err| format!("failed to read inject script: {err}"))?;
+    let script =
+        fs::read_to_string(&path).map_err(|err| format!("failed to read inject script: {err}"))?;
     window
         .eval(&script)
         .map_err(|err| format!("failed to eval inject script: {err}"))
@@ -28,8 +28,8 @@ pub fn inject_from_resource_with_replacements(
         .path()
         .resolve(resource_path, BaseDirectory::Resource)
         .map_err(|err| format!("failed to resolve resource path: {err}"))?;
-    let mut script = fs::read_to_string(&path)
-        .map_err(|err| format!("failed to read inject script: {err}"))?;
+    let mut script =
+        fs::read_to_string(&path).map_err(|err| format!("failed to read inject script: {err}"))?;
 
     for (key, value) in replacements {
         script = script.replace(key, value);
