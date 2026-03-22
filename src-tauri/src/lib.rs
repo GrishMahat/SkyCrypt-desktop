@@ -107,6 +107,20 @@ fn hide_main_window(app: &tauri::AppHandle) {
 }
 
 #[cfg(not(mobile))]
+fn close_to_tray(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.hide();
+    }
+    if let Some(window) = app.get_webview_window("offline") {
+        let _ = window.hide();
+    }
+    if let Some(window) = app.get_webview_window("splash") {
+        let _ = window.hide();
+    }
+    log::info!("Window closed to tray");
+}
+
+#[cfg(not(mobile))]
 fn setup_logging(app: &tauri::AppHandle) {
     let log_dir = app.path().app_log_dir().expect("failed to get log dir");
     let _ = fs::create_dir_all(&log_dir);
@@ -325,8 +339,7 @@ pub fn run() {
                                     .load(Ordering::SeqCst);
                                 if !should_quit {
                                     api.prevent_close();
-                                    let _ = window_for_event.hide();
-                                    update_tray_menu(&app_handle_for_event);
+                                    close_to_tray(&app_handle_for_event);
                                 }
                             }
                         });
