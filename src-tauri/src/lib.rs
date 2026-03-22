@@ -1,4 +1,8 @@
 #[cfg(not(mobile))]
+use std::fs::{self, OpenOptions};
+#[cfg(not(mobile))]
+use std::io::Write;
+#[cfg(not(mobile))]
 use std::net::{TcpStream, ToSocketAddrs};
 #[cfg(not(mobile))]
 use std::sync::{
@@ -103,6 +107,49 @@ fn hide_main_window(app: &tauri::AppHandle) {
 }
 
 #[cfg(not(mobile))]
+fn setup_logging(app: &tauri::AppHandle) {
+    let log_dir = app.path().app_log_dir().expect("failed to get log dir");
+    let _ = fs::create_dir_all(&log_dir);
+    let log_path = log_dir.join("skycrypt.log");
+
+    env_logger::Builder::from_default_env()
+        .filter_level(log::LevelFilter::Info)
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "[{} {} {}] {}",
+                chrono_lite(),
+                record.level(),
+                record.target(),
+                record.args()
+            )
+        })
+        .init();
+
+    std::panic::set_hook(Box::new(|panic_info| {
+        let msg = format!("[PANIC] {}\n", panic_info);
+        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
+            let _ = file.write_all(msg.as_bytes());
+        }
+        eprintln!("{}", msg);
+    }));
+
+    log::info!("SkyCrypt Desktop started. Log file: {:?}", log_path);
+}
+
+#[cfg(not(mobile))]
+fn chrono_lite() -> String {
+    use std::time::SystemTime;
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or_default();
+    let secs = now.as_secs();
+    let hours = (secs / 3600) % 24;
+    let mins = (secs / 60) % 60;
+    let secs = secs % 60;
+    format!("{:02}:{:02}:{:02}", hours, mins, secs)
+}
+
 #[cfg(not(mobile))]
 fn update_tray_menu(app: &tauri::AppHandle) {
     let items = app.state::<TrayMenuItems>();
@@ -126,6 +173,7 @@ pub fn run() {
         .setup(|app| {
             #[cfg(not(mobile))]
             {
+                setup_logging(app.handle());
                 app.manage(QuitFlag::default());
                 let menu = Menu::new(app)?;
                 let tray_show = MenuItem::with_id(app, "tray_show", "Show", true, None::<&str>)?;
