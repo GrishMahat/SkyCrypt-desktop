@@ -35,9 +35,11 @@ struct QuitFlag(AtomicBool);
 struct TrayState(tauri::tray::TrayIcon);
 
 #[cfg(not(mobile))]
+#[allow(dead_code)]
 struct TrayMenuItems {
     show: MenuItem<tauri::Wry>,
     hide: MenuItem<tauri::Wry>,
+    home: MenuItem<tauri::Wry>,
     reload: MenuItem<tauri::Wry>,
     quit: MenuItem<tauri::Wry>,
 }
@@ -76,46 +78,125 @@ fn is_online() -> bool {
     false
 }
 
+#[cfg(not(mobile))]
 fn is_blank_url(url: &Url) -> bool {
     url.as_str() == "about:blank" || url.scheme() == "about"
 }
 
 #[cfg(not(mobile))]
 fn show_main_window(app: &tauri::AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.show();
-        let _ = window.set_focus();
-        update_tray_menu(app);
-        return;
-    }
-    if let Some(window) = app.get_webview_window("offline") {
-        let _ = window.show();
-        let _ = window.set_focus();
-        update_tray_menu(app);
+    for (label, window) in app.webview_windows() {
+        if label != "splash" {
+            let _ = window.show();
+            let _ = window.set_focus();
+            update_tray_menu(app);
+            return;
+        }
     }
 }
 
 #[cfg(not(mobile))]
-fn hide_main_window(app: &tauri::AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.hide();
+fn reload_main_window(app: &tauri::AppHandle) {
+    for (label, window) in app.webview_windows() {
+        if label != "splash" {
+            let _ = window.reload();
+            return;
+        }
     }
-    if let Some(window) = app.get_webview_window("offline") {
-        let _ = window.hide();
+}
+
+#[cfg(not(mobile))]
+fn go_home(app: &tauri::AppHandle) {
+    show_main_window(app);
+    for (label, window) in app.webview_windows() {
+        if label != "splash" {
+            let _ = window.eval("window.location.replace('https://sky.shiiyu.moe/')");
+            return;
+        }
+    }
+}
+
+#[cfg(not(mobile))]
+fn open_player_window(app: &tauri::AppHandle, player_name: &str) -> Result<(), String> {
+    let sanitized = player_name.replace(|c: char| !c.is_alphanumeric() && c != '_', "");
+    if sanitized.is_empty() {
+        return Err("Invalid player name".to_string());
+    }
+
+    let sanitized_lower = sanitized.to_lowercase();
+    let window_label = format!("player_{}", sanitized_lower);
+
+    if let Some(existing) = app.get_webview_window(&window_label) {
+        let _ = existing.show();
+        let _ = existing.set_focus();
+        return Ok(());
+    }
+
+    let player_url = format!("{MAIN_SCHEME}://{MAIN_HOST}/stats/{sanitized_lower}");
+    log::info!("Opening player window: {} -> {}", sanitized, player_url);
+
+    let is_hyprland = std::env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok()
+        || std::env::var("XDG_CURRENT_DESKTOP")
+            .map(|v| v.to_lowercase().contains("hyprland"))
+            .unwrap_or(false);
+
+    let window = WebviewWindowBuilder::new(
+        app,
+        &window_label,
+        WebviewUrl::External(player_url.parse().unwrap()),
+    )
+    .title(format!("SkyCrypt - {}", sanitized))
+    .inner_size(1400.0, 900.0)
+    .center()
+    .resizable(true)
+    .decorations(!is_hyprland)
+    .zoom_hotkeys_enabled(false)
+    .on_page_load({
+        let app_handle = app.clone();
+        move |window, payload| {
+            if payload.event() == PageLoadEvent::Finished {
+                inject_interaction_overrides(&app_handle, &window);
+                inject_skycrypt_scripts(&app_handle, &window);
+            }
+        }
+    })
+    .build()
+    .map_err(|e| format!("Failed to create window: {}", e))?;
+
+    let app_handle = app.clone();
+    let label = window_label.clone();
+    window.on_window_event(move |event| {
+        if let WindowEvent::CloseRequested { api, .. } = event {
+            let should_quit = app_handle.state::<QuitFlag>().0.load(Ordering::SeqCst);
+            if !should_quit {
+                api.prevent_close();
+                if let Some(w) = app_handle.get_webview_window(&label) {
+                    let _ = w.hide();
+                }
+            }
+        }
+    });
+
+    log::info!("Opened player window: {}", sanitized);
+    Ok(())
+}
+
+#[cfg(not(mobile))]
+fn hide_main_window(app: &tauri::AppHandle) {
+    for (label, window) in app.webview_windows() {
+        if label != "splash" {
+            let _ = window.hide();
+        }
     }
     update_tray_menu(app);
 }
 
 #[cfg(not(mobile))]
 fn close_to_tray(app: &tauri::AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.hide();
-    }
-    if let Some(window) = app.get_webview_window("offline") {
-        let _ = window.hide();
-    }
-    if let Some(window) = app.get_webview_window("splash") {
-        let _ = window.hide();
+    for (label, window) in app.webview_windows() {
+        if label != "splash" {
+            let _ = window.hide();
+        }
     }
     log::info!("Window closed to tray");
 }
@@ -140,9 +221,14 @@ fn setup_logging(app: &tauri::AppHandle) {
         })
         .init();
 
-    std::panic::set_hook(Box::new(|panic_info| {
+    let log_path_for_panic = log_path.clone();
+    std::panic::set_hook(Box::new(move |panic_info| {
         let msg = format!("[PANIC] {}\n", panic_info);
-        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
+        if let Ok(mut file) = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_path_for_panic)
+        {
             let _ = file.write_all(msg.as_bytes());
         }
         eprintln!("{}", msg);
@@ -173,25 +259,59 @@ fn update_tray_menu(app: &tauri::AppHandle) {
     let _ = items.quit.set_enabled(true);
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    let builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
-    #[cfg(not(mobile))]
-    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-        if let Some(window) = app.get_webview_window("main") {
-            let _: Result<(), _> = window.set_focus();
+#[cfg(not(mobile))]
+pub fn run(initial_player: Option<String>) {
+    let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_deep_link::init());
+    let builder = builder.plugin(tauri_plugin_single_instance::init({
+        move |app, args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+            for arg in &args {
+                if let Ok(url) = Url::parse(arg) {
+                    let path = url.path().trim_start_matches('/');
+                    if !path.is_empty() {
+                        log::info!("Opening player from URL: {}", path);
+                        let _ = open_player_window(app, path);
+                    }
+                } else if !arg.starts_with('-') {
+                    log::info!("Opening player from arg: {}", arg);
+                    let _ = open_player_window(app, arg);
+                }
+            }
         }
     }));
 
     builder
-        .setup(|app| {
+        .setup(move |app| {
             #[cfg(not(mobile))]
             {
                 setup_logging(app.handle());
+
+                app.listen("deep-link://new-url", {
+                    let app_handle = app.handle().clone();
+                    move |event| {
+                        let urls = event.payload();
+                        log::info!("Deep link received: {}", urls);
+                        if let Ok(url) = Url::parse(urls) {
+                            let path = url.path();
+                            let player = path.trim_start_matches('/');
+                            if !player.is_empty() {
+                                log::info!("Opening player from deep link: {}", player);
+                                let _ = open_player_window(&app_handle, player);
+                            }
+                        }
+                    }
+                });
+
                 app.manage(QuitFlag::default());
                 let menu = Menu::new(app)?;
                 let tray_show = MenuItem::with_id(app, "tray_show", "Show", true, None::<&str>)?;
                 let tray_hide = MenuItem::with_id(app, "tray_hide", "Hide", true, None::<&str>)?;
+                let tray_home = MenuItem::with_id(app, "tray_home", "Home", true, None::<&str>)?;
                 let tray_reload =
                     MenuItem::with_id(app, "tray_reload", "Reload", true, None::<&str>)?;
                 let tray_quit = MenuItem::with_id(app, "tray_quit", "Quit", true, None::<&str>)?;
@@ -199,6 +319,7 @@ pub fn run() {
 
                 menu.append(&tray_show)?;
                 menu.append(&tray_hide)?;
+                menu.append(&tray_home)?;
                 menu.append(&tray_reload)?;
                 menu.append(&tray_sep)?;
                 menu.append(&tray_quit)?;
@@ -213,10 +334,11 @@ pub fn run() {
                         "tray_hide" => {
                             hide_main_window(app);
                         }
+                        "tray_home" => {
+                            go_home(app);
+                        }
                         "tray_reload" => {
-                            if let Some(window) = app.get_webview_window("main") {
-                                let _ = window.reload();
-                            }
+                            reload_main_window(app);
                         }
                         "tray_quit" => {
                             let state = app.state::<QuitFlag>();
@@ -246,6 +368,7 @@ pub fn run() {
                 app.manage(TrayMenuItems {
                     show: tray_show,
                     hide: tray_hide,
+                    home: tray_home,
                     reload: tray_reload,
                     quit: tray_quit,
                 });
@@ -257,15 +380,20 @@ pub fn run() {
                         .map(|v| v.to_lowercase().contains("hyprland"))
                         .unwrap_or(false);
 
-                let _splash =
-                    WebviewWindowBuilder::new(app, "splash", WebviewUrl::App("index.html".into()))
-                        .title("SkyCrypt Desktop")
-                        .inner_size(420.0, 260.0)
-                        .resizable(false)
-                        .decorations(false)
-                        .center()
-                        .build()
-                        .expect("failed to create splash window");
+                if initial_player.is_none() {
+                    let _splash = WebviewWindowBuilder::new(
+                        app,
+                        "splash",
+                        WebviewUrl::App("index.html".into()),
+                    )
+                    .title("SkyCrypt Desktop")
+                    .inner_size(420.0, 260.0)
+                    .resizable(false)
+                    .decorations(false)
+                    .center()
+                    .build()
+                    .expect("failed to create splash window");
+                }
 
                 let main_created = Arc::new(AtomicBool::new(false));
                 let create_main_window: Arc<dyn Fn(&tauri::AppHandle) + Send + Sync> = {
@@ -329,7 +457,6 @@ pub fn run() {
                         .build()
                         .expect("failed to create window");
 
-                        let window_for_event = window.clone();
                         let app_handle_for_event = app_handle.clone();
                         window.on_window_event(move |event| {
                             if let WindowEvent::CloseRequested { api, .. } = event {
@@ -350,7 +477,20 @@ pub fn run() {
                     let app_handle = app_handle.clone();
                     let main_created = Arc::clone(&main_created);
                     let create_main_window = Arc::clone(&create_main_window);
+                    let init_player = initial_player.clone();
                     move || {
+                        if let Some(raw_arg) = &init_player {
+                            let player = if let Ok(url) = Url::parse(raw_arg) {
+                                url.path().trim_start_matches('/').to_string()
+                            } else {
+                                raw_arg.clone()
+                            };
+                            if !player.is_empty() {
+                                log::info!("Opening player from args: {}", player);
+                                let _ = open_player_window(&app_handle, &player);
+                            }
+                            return;
+                        }
                         if is_online() {
                             (create_main_window)(&app_handle);
                             return;
@@ -445,4 +585,10 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(mobile)]
+#[tauri::mobile_entry_point]
+pub fn run() {
+    crate::run(None)
 }
