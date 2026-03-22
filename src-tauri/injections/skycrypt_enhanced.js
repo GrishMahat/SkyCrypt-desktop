@@ -4,32 +4,12 @@
  *   Reference: src/assets/scripts/jsInjector.ts
  * - SkyCrypt Frontend: https://github.com/SkyCryptWebsite/SkyCrypt-Frontend
  */
-// NOTE: Currently disabled. Rewriting in progress; not injecting right now.
 (() => {
-  if (!window.skycryptEssentialsLoaded) return;
-
   const LOG_PREFIX = 'SkyCrypt Desktop';
 
   // Avoid layout thrash while mutating DOM.
   function scheduleDomUpdate(callback) {
     return window.requestAnimationFrame(callback);
-  }
-
-  function removeHeaderBlocks() {
-    try {
-      scheduleDomUpdate(() => {
-        const elements = [
-          document.querySelector('.flex.flex-wrap.items-center.gap-x-4.gap-y-2'),
-          document.querySelector('.text-text.w-full.space-y-4.p-5.font-medium.text-pretty.select-none'),
-          document.querySelector('button[aria-haspopup="dialog"][data-state="closed"] svg.lucide-info')?.closest('button'),
-          document.getElementById('bits-5')
-        ];
-
-        elements.forEach(el => el && el.remove());
-      });
-    } catch (error) {
-      console.error(`${LOG_PREFIX} header cleanup error:`, error);
-    }
   }
 
   // Injects a single networth pill next to the player name and keeps it updated.
