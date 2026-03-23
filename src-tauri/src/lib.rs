@@ -20,7 +20,23 @@ use tauri::{webview::PageLoadEvent, Url, WebviewUrl, WebviewWindowBuilder};
 use tauri::{Listener, Manager, WindowEvent};
 
 const MAIN_HOST: &str = "sky.shiiyu.moe";
+const DEV_HOST: &str = "cupcake.shiiyu.moe";
 const MAIN_SCHEME: &str = "https";
+
+#[derive(Default, serde::Serialize, serde::Deserialize)]
+struct Config {
+    website_version: String,
+    auto_refresh: String,
+}
+
+fn get_current_host(app: &tauri::AppHandle) -> String {
+    let config = load_config(app);
+    if config.website_version == "dev" {
+        DEV_HOST.to_string()
+    } else {
+        MAIN_HOST.to_string()
+    }
+}
 #[cfg(not(mobile))]
 const OFFLINE_RETRY_SECS: u64 = 3;
 
@@ -56,12 +72,29 @@ fn inject_interaction_overrides(app: &tauri::AppHandle, window: &tauri::WebviewW
 }
 
 fn inject_skycrypt_scripts(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
+    inject_api_shim(window);
     let _ = injector::inject_from_resource(app, window, ESSENTIALS_SCRIPT);
     let _ = injector::inject_from_resource(app, window, ENHANCED_SCRIPT);
 }
 
 fn is_allowed_host(host: &str) -> bool {
-    host == MAIN_HOST || host.ends_with(".shiiyu.moe")
+    host == MAIN_HOST || host == DEV_HOST || host.ends_with(".shiiyu.moe")
+}
+
+fn inject_api_shim(window: &tauri::WebviewWindow) {
+    let shim = r#"
+        (function() {
+            if (!window.api) {
+                window.api = {
+                    invoke: function(cmd, args) {
+                        return window.__TAURI__.core.invoke(cmd, args);
+                    }
+                };
+                console.log('[SkyCrypt Desktop] API shim initialized');
+            }
+        })();
+    "#;
+    let _ = window.eval(shim);
 }
 
 #[cfg(not(mobile))]
@@ -108,9 +141,12 @@ fn reload_main_window(app: &tauri::AppHandle) {
 #[cfg(not(mobile))]
 fn go_home(app: &tauri::AppHandle) {
     show_main_window(app);
+    let host = get_current_host(app);
     for (label, window) in app.webview_windows() {
         if label != "splash" {
-            let _ = window.eval("window.location.replace('https://sky.shiiyu.moe/')");
+            let _ = window.eval(&format!(
+                "window.location.replace('{MAIN_SCHEME}://{host}/')"
+            ));
             return;
         }
     }
@@ -132,7 +168,8 @@ fn open_player_window(app: &tauri::AppHandle, player_name: &str) -> Result<(), S
         return Ok(());
     }
 
-    let player_url = format!("{MAIN_SCHEME}://{MAIN_HOST}/stats/{sanitized_lower}");
+    let host = get_current_host(app);
+    let player_url = format!("{MAIN_SCHEME}://{host}/stats/{sanitized_lower}");
     log::info!("Opening player window: {} -> {}", sanitized, player_url);
 
     let is_hyprland = std::env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok()
@@ -251,6 +288,114 @@ fn chrono_lite() -> String {
 }
 
 #[cfg(not(mobile))]
+fn get_config_path(app: &tauri::AppHandle) -> std::path::PathBuf {
+    app.path()
+        .app_config_dir()
+        .unwrap_or_else(|_| std::path::PathBuf::from("."))
+        .join("config.json")
+}
+
+#[cfg(not(mobile))]
+fn load_config(app: &tauri::AppHandle) -> Config {
+    let path = get_config_path(app);
+    if path.exists() {
+        if let Ok(data) = fs::read_to_string(&path) {
+            if let Ok(config) = serde_json::from_str::<Config>(&data) {
+                return config;
+            }
+        }
+    }
+    Config {
+        website_version: "stable".to_string(),
+        auto_refresh: "off".to_string(),
+    }
+}
+
+#[cfg(not(mobile))]
+fn save_config(app: &tauri::AppHandle, config: &Config) -> Result<(), String> {
+    let path = get_config_path(app);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let data = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
+    fs::write(&path, data).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[cfg(not(mobile))]
+#[tauri::command]
+fn get_website_version(app: tauri::AppHandle) -> String {
+    load_config(&app).website_version
+}
+
+#[cfg(not(mobile))]
+#[tauri::command]
+fn save_website_version(app: tauri::AppHandle, version: String) -> Result<(), String> {
+    let mut config = load_config(&app);
+    config.website_version = version;
+    save_config(&app, &config)
+}
+
+#[cfg(not(mobile))]
+#[tauri::command]
+fn get_auto_refresh(app: tauri::AppHandle) -> String {
+    load_config(&app).auto_refresh
+}
+
+#[cfg(not(mobile))]
+#[tauri::command]
+fn save_auto_refresh(app: tauri::AppHandle, interval: String) -> Result<(), String> {
+    let mut config = load_config(&app);
+    config.auto_refresh = interval;
+    save_config(&app, &config)
+}
+
+#[cfg(not(mobile))]
+#[tauri::command]
+fn reset_config(app: tauri::AppHandle) -> Result<(), String> {
+    let path = get_config_path(&app);
+    if path.exists() {
+        fs::remove_file(&path).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[cfg(not(mobile))]
+#[tauri::command]
+fn close_settings_window(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("settings") {
+        window.close().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[cfg(not(mobile))]
+#[tauri::command]
+fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(existing) = app.get_webview_window("settings") {
+        let _ = existing.show();
+        let _ = existing.set_focus();
+        return Ok(());
+    }
+
+    let is_hyprland = std::env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok()
+        || std::env::var("XDG_CURRENT_DESKTOP")
+            .map(|v| v.to_lowercase().contains("hyprland"))
+            .unwrap_or(false);
+
+    WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App("settings".into()))
+        .title("Settings")
+        .inner_size(450.0, 520.0)
+        .center()
+        .resizable(false)
+        .decorations(!is_hyprland)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[cfg(not(mobile))]
 fn update_tray_menu(app: &tauri::AppHandle) {
     let items = app.state::<TrayMenuItems>();
     let _ = items.show.set_enabled(true);
@@ -286,6 +431,15 @@ pub fn run(initial_player: Option<String>) {
     }));
 
     builder
+        .invoke_handler(tauri::generate_handler![
+            get_website_version,
+            save_website_version,
+            get_auto_refresh,
+            save_auto_refresh,
+            reset_config,
+            close_settings_window,
+            open_settings_window,
+        ])
         .setup(move |app| {
             #[cfg(not(mobile))]
             {
@@ -402,11 +556,12 @@ pub fn run(initial_player: Option<String>) {
                         if main_created.swap(true, Ordering::SeqCst) {
                             return;
                         }
+                        let host = get_current_host(app_handle);
                         let window = WebviewWindowBuilder::new(
                             app_handle,
                             "main",
                             WebviewUrl::External(
-                                format!("{MAIN_SCHEME}://{MAIN_HOST}").parse().unwrap(),
+                                format!("{MAIN_SCHEME}://{host}").parse().unwrap(),
                             ),
                         )
                         .title("SkyCrypt Desktop")

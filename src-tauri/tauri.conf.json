@@ -5,14 +5,14 @@
   "identifier": "me.grish.skycrypt",
   "build": {
     "beforeDevCommand": "pnpm run dev",
-    "devUrl": "http://localhost:5173",
+    "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "pnpm run build",
     "frontendDist": "../build"
   },
   "app": {
     "windows": [],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sky.shiiyu.moe; style-src 'self' 'unsafe-inline' https://sky.shiiyu.moe; img-src 'self' data: https://sky.shiiyu.moe https://mc-heads.net https://crafatar.com https://*.hypixel.net https://i.imgur.com; connect-src 'self' ipc: https://sky.shiiyu.moe https://api.slothpixel.gg https://hypixel-api.goofydmn.de; frame-src https://www.youtube.com https://www.youtube-nocookie.com;"
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sky.shiiyu.moe https://cupcake.shiiyu.moe; style-src 'self' 'unsafe-inline' https://sky.shiiyu.moe https://cupcake.shiiyu.moe; img-src 'self' data: https://sky.shiiyu.moe https://cupcake.shiiyu.moe https://mc-heads.net https://crafatar.com https://*.hypixel.net https://i.imgur.com; connect-src 'self' ipc: https://sky.shiiyu.moe https://cupcake.shiiyu.moe https://api.slothpixel.gg https://hypixel-api.goofydmn.de; frame-src https://www.youtube.com https://www.youtube-nocookie.com;"
     }
   },
   "plugins": {

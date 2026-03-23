@@ -35,4 +35,45 @@
     }
   }, { capture: true });
 
+  const MAIN_HOST = 'sky.shiiyu.moe';
+
+  function isExternalLink(url) {
+    try {
+      const urlObj = new URL(url);
+      return urlObj.hostname !== MAIN_HOST && !urlObj.hostname.endsWith('.shiiyu.moe');
+    } catch {
+      return false;
+    }
+  }
+
+  document.addEventListener('click', async (event) => {
+    const target = event.target.closest('a');
+    if (!target) return;
+
+    const href = target.getAttribute('href');
+    if (!href) return;
+
+    if (href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) {
+      return;
+    }
+
+    const fullUrl = href.startsWith('http') ? href : new URL(href, window.location.origin).href;
+
+    if (isExternalLink(fullUrl)) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (window.__TAURI__?.opener) {
+        try {
+          await window.__TAURI__.opener.openUrl(fullUrl);
+        } catch (err) {
+          console.error('Failed to open external link:', err);
+          window.open(fullUrl, '_blank');
+        }
+      } else {
+        window.open(fullUrl, '_blank');
+      }
+    }
+  }, { capture: true });
+
 })();
