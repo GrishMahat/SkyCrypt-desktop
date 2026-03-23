@@ -1,8 +1,9 @@
 # SkyCrypt Desktop
 
 [![GitHub release (latest)](https://img.shields.io/github/v/release/GrishMahat/SkyCrypt-desktop?include_prereleases&label=latest)](https://github.com/GrishMahat/SkyCrypt-desktop/releases/latest)
-[![GitHub all releases](https://img.shields.io/github/downloads/GrishMahat/SkyCrypt-desktop/total?label=total%20downloads)](https://github.com/GrishMahat/SkyCrypt-desktop/releases)
+[![GitHub all releases](https://img.shields.io/github/downloads/GrishMahat/SkyCrypt-desktop/total?label=total)](https://github.com/GrishMahat/SkyCrypt-desktop/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)](https://github.com/GrishMahat/SkyCrypt-desktop/releases)
+[![License](https://img.shields.io/github/license/GrishMahat/SkyCrypt-desktop)](https://github.com/GrishMahat/SkyCrypt-desktop/blob/master/LICENSE)
 
 SkyCrypt Desktop is a lightweight desktop app for viewing Hypixel SkyBlock statistics via SkyCrypt (`https://sky.shiiyu.moe/`). Built with Rust and Tauri, it delivers a fast native window without Electron overhead.
 
@@ -11,23 +12,22 @@ SkyCrypt Desktop is a lightweight desktop app for viewing Hypixel SkyBlock stati
 ## Downloads
 
 ### Latest Release (v0.1.6)
-| Platform | File | Downloads |
-|----------|------|-----------|
-| Windows | [SkyCrypt.Desktop_0.1.6_x64-setup.exe](https://github.com/GrishMahat/SkyCrypt-desktop/releases/download/v0.1.6/SkyCrypt.Desktop_0.1.6_x64-setup.exe) | 0 |
-| macOS (Apple Silicon) | [SkyCrypt.Desktop_0.1.6_aarch64.dmg](https://github.com/GrishMahat/SkyCrypt-desktop/releases/download/v0.1.6/SkyCrypt.Desktop_0.1.6_aarch64.dmg) | 0 |
-| Linux (Debian) | [SkyCrypt.Desktop_0.1.6_amd64.deb](https://github.com/GrishMahat/SkyCrypt-desktop/releases/download/v0.1.6/SkyCrypt.Desktop_0.1.6_amd64.deb) | 1 |
-| Linux (RPM) | [SkyCrypt.Desktop-0.1.6-1.x86_64.rpm](https://github.com/GrishMahat/SkyCrypt-desktop/releases/download/v0.1.6/SkyCrypt.Desktop-0.1.6-1.x86_64.rpm) | 0 |
+| Platform | File |
+|----------|------|
+| Windows | [SkyCrypt.Desktop_0.1.6_x64-setup.exe](https://github.com/GrishMahat/SkyCrypt-desktop/releases/download/v0.1.6/SkyCrypt.Desktop_0.1.6_x64-setup.exe) |
+| macOS (Apple Silicon) | [SkyCrypt.Desktop_0.1.6_aarch64.dmg](https://github.com/GrishMahat/SkyCrypt-desktop/releases/download/v0.1.6/SkyCrypt.Desktop_0.1.6_aarch64.dmg) |
+| Linux (Debian) | [SkyCrypt.Desktop_0.1.6_amd64.deb](https://github.com/GrishMahat/SkyCrypt-desktop/releases/download/v0.1.6/SkyCrypt.Desktop_0.1.6_amd64.deb) |
+| Linux (RPM) | [SkyCrypt.Desktop-0.1.6-1.x86_64.rpm](https://github.com/GrishMahat/SkyCrypt-desktop/releases/download/v0.1.6/SkyCrypt.Desktop-0.1.6-1.x86_64.rpm) |
 
 ### Previous Releases
-
-| Version | Windows | macOS (ARM64) | macOS (Intel) | Linux (deb) | Linux (rpm) | Linux (AppImage) |
-|---------|---------|---------------|--------------|-------------|-------------|------------------|
-| [v0.1.5](https://github.com/GrishMahat/SkyCrypt-desktop/releases/v0.1.5) | 0 | 0 | - | 1 | 0 | - |
-| [v0.1.4](https://github.com/GrishMahat/SkyCrypt-desktop/releases/v0.1.4) | 0 | 0 | - | 1 | 0 | - |
-| [v0.1.3](https://github.com/GrishMahat/SkyCrypt-desktop/releases/v0.1.3) | 0 | 0 | - | 1 | 0 | 0 |
-| [v0.1.2](https://github.com/GrishMahat/SkyCrypt-desktop/releases/v0.1.2) | 0 | - | 0 | 1 | 0 | - |
-| [v0.1.1](https://github.com/GrishMahat/SkyCrypt-desktop/releases/v0.1.1) | 0 | - | 0 | 1 | 0 | - |
-| [v0.1.0](https://github.com/GrishMahat/SkyCrypt-desktop/releases/v0.1.0) | 0 | - | 0 | 1 | 0 | - |
+| Version | Release Page |
+|---------|--------------|
+| [v0.1.5](https://github.com/GrishMahat/SkyCrypt-desktop/releases/v0.1.5) |
+| [v0.1.4](https://github.com/GrishMahat/SkyCrypt-desktop/releases/v0.1.4) |
+| [v0.1.3](https://github.com/GrishMahat/SkyCrypt-desktop/releases/v0.1.3) |
+| [v0.1.2](https://github.com/GrishMahat/SkyCrypt-desktop/releases/v0.1.2) |
+| [v0.1.1](https://github.com/GrishMahat/SkyCrypt-desktop/releases/v0.1.1) |
+| [v0.1.0](https://github.com/GrishMahat/SkyCrypt-desktop/releases/v0.1.0) |
 
 ---
 
