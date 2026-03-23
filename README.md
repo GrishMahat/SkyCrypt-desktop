@@ -1,12 +1,39 @@
 # SkyCrypt Desktop
 
+[![GitHub release (latest)](https://img.shields.io/github/v/release/GrishMahat/SkyCrypt-desktop?include_prereleases&label=latest)](https://github.com/GrishMahat/SkyCrypt-desktop/releases/latest)
+[![GitHub all releases](https://img.shields.io/github/downloads/GrishMahat/SkyCrypt-desktop/total?label=total%20downloads)](https://github.com/GrishMahat/SkyCrypt-desktop/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)](https://github.com/GrishMahat/SkyCrypt-desktop/releases)
+
 SkyCrypt Desktop is a lightweight desktop app for viewing Hypixel SkyBlock statistics via SkyCrypt (`https://sky.shiiyu.moe/`). Built with Rust and Tauri, it delivers a fast native window without Electron overhead.
 
-This project turns the SkyCrypt web app into a native desktop experience without the overhead of Electron. It uses a minimal WebView approach while allowing custom enhancements like UI injection and additional controls.
+---
+
+## Downloads
+
+### Latest Release (v0.1.6)
+| Platform | File | Downloads |
+|----------|------|-----------|
+| Windows | [SkyCrypt.Desktop_0.1.6_x64-setup.exe](https://github.com/GrishMahat/SkyCrypt-desktop/releases/download/v0.1.6/SkyCrypt.Desktop_0.1.6_x64-setup.exe) | 0 |
+| macOS (Apple Silicon) | [SkyCrypt.Desktop_0.1.6_aarch64.dmg](https://github.com/GrishMahat/SkyCrypt-desktop/releases/download/v0.1.6/SkyCrypt.Desktop_0.1.6_aarch64.dmg) | 0 |
+| Linux (Debian) | [SkyCrypt.Desktop_0.1.6_amd64.deb](https://github.com/GrishMahat/SkyCrypt-desktop/releases/download/v0.1.6/SkyCrypt.Desktop_0.1.6_amd64.deb) | 1 |
+| Linux (RPM) | [SkyCrypt.Desktop-0.1.6-1.x86_64.rpm](https://github.com/GrishMahat/SkyCrypt-desktop/releases/download/v0.1.6/SkyCrypt.Desktop-0.1.6-1.x86_64.rpm) | 0 |
+
+### Previous Releases
+
+| Version | Windows | macOS (ARM64) | macOS (Intel) | Linux (deb) | Linux (rpm) | Linux (AppImage) |
+|---------|---------|---------------|--------------|-------------|-------------|------------------|
+| [v0.1.5](https://github.com/GrishMahat/SkyCrypt-desktop/releases/v0.1.5) | 0 | 0 | - | 1 | 0 | - |
+| [v0.1.4](https://github.com/GrishMahat/SkyCrypt-desktop/releases/v0.1.4) | 0 | 0 | - | 1 | 0 | - |
+| [v0.1.3](https://github.com/GrishMahat/SkyCrypt-desktop/releases/v0.1.3) | 0 | 0 | - | 1 | 0 | 0 |
+| [v0.1.2](https://github.com/GrishMahat/SkyCrypt-desktop/releases/v0.1.2) | 0 | - | 0 | 1 | 0 | - |
+| [v0.1.1](https://github.com/GrishMahat/SkyCrypt-desktop/releases/v0.1.1) | 0 | - | 0 | 1 | 0 | - |
+| [v0.1.0](https://github.com/GrishMahat/SkyCrypt-desktop/releases/v0.1.0) | 0 | - | 0 | 1 | 0 | - |
+
+---
 
 ## Overview
 
-SkyCrypt Desktop is a Hypixel SkyBlock desktop app that wraps the SkyCrypt website in a native window. If you are searching for a SkyCrypt desktop app, Hypixel SkyBlock stats desktop app, or a lightweight SkyBlock profile viewer for PC, this project is that desktop client.
+This project turns the SkyCrypt web app into a native desktop experience without the overhead of Electron. It uses a minimal WebView approach while allowing custom enhancements like UI injection and additional controls.
 
 ## Use Cases
 
