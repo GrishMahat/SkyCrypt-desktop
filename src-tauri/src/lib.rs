@@ -1,3 +1,8 @@
+//! SkyCrypt Desktop Application
+//!
+//! A Tauri-based desktop application for viewing SkyCrypt player stats.
+//! Provides system tray integration, offline detection, and custom window management.
+
 #[cfg(not(mobile))]
 use std::fs::{self, OpenOptions};
 #[cfg(not(mobile))]
@@ -19,16 +24,21 @@ use tauri::{webview::PageLoadEvent, Url, WebviewUrl, WebviewWindowBuilder};
 #[cfg(not(mobile))]
 use tauri::{Listener, Manager, WindowEvent};
 
+/// Production SkyCrypt host
 const MAIN_HOST: &str = "sky.shiiyu.moe";
+/// Development SkyCrypt host
 const DEV_HOST: &str = "cupcake.shiiyu.moe";
+/// URL scheme used for SkyCrypt (https)
 const MAIN_SCHEME: &str = "https";
 
+/// Application configuration stored in config.json
 #[derive(Default, serde::Serialize, serde::Deserialize)]
 struct Config {
     website_version: String,
     auto_refresh: String,
 }
 
+/// Returns the current SkyCrypt host based on configuration (dev or stable)
 fn get_current_host(app: &tauri::AppHandle) -> String {
     let config = load_config(app);
     if config.website_version == "dev" {
@@ -40,6 +50,7 @@ fn get_current_host(app: &tauri::AppHandle) -> String {
 #[cfg(not(mobile))]
 const OFFLINE_RETRY_SECS: u64 = 3;
 
+/// JavaScript injection module for webview scripts
 mod injector;
 
 #[cfg(not(mobile))]
@@ -60,27 +71,31 @@ struct TrayMenuItems {
     quit: MenuItem<tauri::Wry>,
 }
 
-// Injection toggles: keep the scripts available but disabled by default.
-// Uncomment these to re-enable.
+/// Path to interaction overrides JavaScript file
 const INTERACTION_OVERRIDE_SCRIPT: &str = "injections/interaction_overrides.js";
+/// Path to enhanced features JavaScript file
 const ENHANCED_SCRIPT: &str = "injections/skycrypt_enhanced.js";
+/// Path to essential features JavaScript file
 const ESSENTIALS_SCRIPT: &str = "injections/skycrypt_essentials.js";
-// const DEFAULT_THEME: &str = "default.json";
 
+/// Injects interaction override scripts into the webview
 fn inject_interaction_overrides(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
     let _ = injector::inject_from_resource(app, window, INTERACTION_OVERRIDE_SCRIPT);
 }
 
+/// Injects SkyCrypt enhancement scripts into the webview
 fn inject_skycrypt_scripts(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
     inject_api_shim(window);
     let _ = injector::inject_from_resource(app, window, ESSENTIALS_SCRIPT);
     let _ = injector::inject_from_resource(app, window, ENHANCED_SCRIPT);
 }
 
+/// Checks if the given host is an allowed SkyCrypt domain
 fn is_allowed_host(host: &str) -> bool {
     host == MAIN_HOST || host == DEV_HOST || host.ends_with(".shiiyu.moe")
 }
 
+/// Injects a JavaScript shim to provide a window.api interface for Tauri commands
 fn inject_api_shim(window: &tauri::WebviewWindow) {
     let shim = r#"
         (function() {
@@ -97,6 +112,7 @@ fn inject_api_shim(window: &tauri::WebviewWindow) {
     let _ = window.eval(shim);
 }
 
+/// Checks if the application is online by attempting to connect to the SkyCrypt host
 #[cfg(not(mobile))]
 fn is_online() -> bool {
     let addrs = match (MAIN_HOST, 443).to_socket_addrs() {
@@ -116,6 +132,7 @@ fn is_blank_url(url: &Url) -> bool {
     url.as_str() == "about:blank" || url.scheme() == "about"
 }
 
+/// Shows and focuses the main application window
 #[cfg(not(mobile))]
 fn show_main_window(app: &tauri::AppHandle) {
     for (label, window) in app.webview_windows() {
@@ -128,6 +145,7 @@ fn show_main_window(app: &tauri::AppHandle) {
     }
 }
 
+/// Reloads the main application window
 #[cfg(not(mobile))]
 fn reload_main_window(app: &tauri::AppHandle) {
     for (label, window) in app.webview_windows() {
@@ -138,6 +156,7 @@ fn reload_main_window(app: &tauri::AppHandle) {
     }
 }
 
+/// Navigates to the SkyCrypt home page
 #[cfg(not(mobile))]
 fn go_home(app: &tauri::AppHandle) {
     show_main_window(app);
@@ -152,6 +171,7 @@ fn go_home(app: &tauri::AppHandle) {
     }
 }
 
+/// Opens a new window displaying the specified player's stats
 #[cfg(not(mobile))]
 fn open_player_window(app: &tauri::AppHandle, player_name: &str) -> Result<(), String> {
     let sanitized = player_name.replace(|c: char| !c.is_alphanumeric() && c != '_', "");
@@ -218,6 +238,7 @@ fn open_player_window(app: &tauri::AppHandle, player_name: &str) -> Result<(), S
     Ok(())
 }
 
+/// Hides the main application window to the system tray
 #[cfg(not(mobile))]
 fn hide_main_window(app: &tauri::AppHandle) {
     for (label, window) in app.webview_windows() {
@@ -228,6 +249,7 @@ fn hide_main_window(app: &tauri::AppHandle) {
     update_tray_menu(app);
 }
 
+/// Closes the window to system tray instead of quitting the application
 #[cfg(not(mobile))]
 fn close_to_tray(app: &tauri::AppHandle) {
     for (label, window) in app.webview_windows() {
@@ -238,6 +260,7 @@ fn close_to_tray(app: &tauri::AppHandle) {
     log::info!("Window closed to tray");
 }
 
+/// Initializes logging to file and sets up panic handler
 #[cfg(not(mobile))]
 fn setup_logging(app: &tauri::AppHandle) {
     let log_dir = app.path().app_log_dir().expect("failed to get log dir");
@@ -287,6 +310,7 @@ fn chrono_lite() -> String {
     format!("{:02}:{:02}:{:02}", hours, mins, secs)
 }
 
+/// Returns the path to the configuration file
 #[cfg(not(mobile))]
 fn get_config_path(app: &tauri::AppHandle) -> std::path::PathBuf {
     app.path()
@@ -295,6 +319,7 @@ fn get_config_path(app: &tauri::AppHandle) -> std::path::PathBuf {
         .join("config.json")
 }
 
+/// Loads application configuration from config.json, returns defaults if not found
 #[cfg(not(mobile))]
 fn load_config(app: &tauri::AppHandle) -> Config {
     let path = get_config_path(app);
@@ -311,6 +336,7 @@ fn load_config(app: &tauri::AppHandle) -> Config {
     }
 }
 
+/// Saves application configuration to config.json
 #[cfg(not(mobile))]
 fn save_config(app: &tauri::AppHandle, config: &Config) -> Result<(), String> {
     let path = get_config_path(app);
@@ -322,12 +348,14 @@ fn save_config(app: &tauri::AppHandle, config: &Config) -> Result<(), String> {
     Ok(())
 }
 
+/// Gets the current website version setting (stable or dev)
 #[cfg(not(mobile))]
 #[tauri::command]
 fn get_website_version(app: tauri::AppHandle) -> String {
     load_config(&app).website_version
 }
 
+/// Saves the website version setting
 #[cfg(not(mobile))]
 #[tauri::command]
 fn save_website_version(app: tauri::AppHandle, version: String) -> Result<(), String> {
@@ -336,12 +364,14 @@ fn save_website_version(app: tauri::AppHandle, version: String) -> Result<(), St
     save_config(&app, &config)
 }
 
+/// Gets the auto-refresh interval setting
 #[cfg(not(mobile))]
 #[tauri::command]
 fn get_auto_refresh(app: tauri::AppHandle) -> String {
     load_config(&app).auto_refresh
 }
 
+/// Saves the auto-refresh interval setting
 #[cfg(not(mobile))]
 #[tauri::command]
 fn save_auto_refresh(app: tauri::AppHandle, interval: String) -> Result<(), String> {
@@ -350,6 +380,7 @@ fn save_auto_refresh(app: tauri::AppHandle, interval: String) -> Result<(), Stri
     save_config(&app, &config)
 }
 
+/// Resets configuration to defaults by deleting config.json
 #[cfg(not(mobile))]
 #[tauri::command]
 fn reset_config(app: tauri::AppHandle) -> Result<(), String> {
@@ -360,6 +391,7 @@ fn reset_config(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Closes the settings window
 #[cfg(not(mobile))]
 #[tauri::command]
 fn close_settings_window(app: tauri::AppHandle) -> Result<(), String> {
@@ -369,6 +401,7 @@ fn close_settings_window(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Opens the settings window
 #[cfg(not(mobile))]
 #[tauri::command]
 fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
@@ -395,6 +428,7 @@ fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Updates the system tray menu state based on current window visibility
 #[cfg(not(mobile))]
 fn update_tray_menu(app: &tauri::AppHandle) {
     let items = app.state::<TrayMenuItems>();
@@ -404,6 +438,7 @@ fn update_tray_menu(app: &tauri::AppHandle) {
     let _ = items.quit.set_enabled(true);
 }
 
+/// Main entry point for the Tauri application
 #[cfg(not(mobile))]
 pub fn run(initial_player: Option<String>) {
     let builder = tauri::Builder::default()
@@ -742,6 +777,7 @@ pub fn run(initial_player: Option<String>) {
         .expect("error while running tauri application");
 }
 
+/// Mobile entry point for the Tauri application
 #[cfg(mobile)]
 #[tauri::mobile_entry_point]
 pub fn run() {

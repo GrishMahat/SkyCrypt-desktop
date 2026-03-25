@@ -1,6 +1,11 @@
+//! JavaScript injection utilities for webview scripts
+//!
+//! Provides functions to inject JavaScript files from resources into webviews.
+
 use std::fs;
 use tauri::{path::BaseDirectory, AppHandle, Manager, WebviewWindow};
 
+/// Injects a JavaScript file from resources into the webview
 pub fn inject_from_resource(
     app: &AppHandle,
     window: &WebviewWindow,
@@ -17,6 +22,7 @@ pub fn inject_from_resource(
         .map_err(|err| format!("failed to eval inject script: {err}"))
 }
 
+/// Injects a JavaScript file from resources with optional string replacements
 #[allow(dead_code)]
 pub fn inject_from_resource_with_replacements(
     app: &AppHandle,

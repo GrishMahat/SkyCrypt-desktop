@@ -6,13 +6,10 @@
  */
 (() => {
   const LOG_PREFIX = 'SkyCrypt Desktop';
-
-  // Avoid layout thrash while mutating DOM.
   function scheduleDomUpdate(callback) {
     return window.requestAnimationFrame(callback);
   }
 
-  // Injects a single networth pill next to the player name and keeps it updated.
   function addNetworthBadge() {
     try {
       if (window.isAddingNetworth) {
@@ -141,7 +138,6 @@
     }
   }
 
-  // Watches for SPA changes and re-applies injections.
   function setupNavigationWatcher() {
     try {
       let debounceTimer;
@@ -276,7 +272,6 @@
       }
     }
 
-    // Apply the captured homepage button style to our injected buttons.
     function applyThemeStyles(button, { square = false } = {}) {
       let style = null;
       if (window.location.pathname === '/' || window.location.pathname === '') {
@@ -358,8 +353,6 @@
     refreshBtn.onclick = () => window.location.reload();
     applyThemeStyles(refreshBtn);
 
-    // Other websites menu disabled for now.
-
     const settingsBtn = document.createElement('button');
     settingsBtn.id = 'custom-settings-button';
     settingsBtn.style.cssText = 'border: none; cursor: pointer; padding: 8px; outline: none; display: flex; justify-content: center; align-items: center;';
@@ -419,8 +412,6 @@
 
       settingsDropdown.appendChild(optionElement);
     });
-
-    // Profile switcher UI disabled for now.
 
     // Separator before reset.
     const separatorAfterRefresh = document.createElement('div');
@@ -541,8 +532,8 @@
   }
 
   let autoRefreshTimer = null;
+  let missedAutoRefresh = false;
 
-  // Apply auto-refresh interval and schedule reload.
   function setAutoRefreshInterval(interval) {
     try {
       localStorage.setItem('autoRefreshInterval', interval);
@@ -560,7 +551,15 @@
         const minutes = parseInt(interval);
         if (!isNaN(minutes) && minutes > 0) {
           const milliseconds = minutes * 60 * 1000;
-          autoRefreshTimer = setTimeout(() => window.location.reload(), milliseconds);
+          autoRefreshTimer = setTimeout(() => {
+            if (document.hasFocus()) {
+              window.location.reload();
+            } else {
+              missedAutoRefresh = true;
+              console.log('[SkyCrypt] Auto-refresh skipped: window not focused');
+              setAutoRefreshInterval(interval);
+            }
+          }, milliseconds);
         }
       }
     } catch (error) {
@@ -568,7 +567,6 @@
     }
   }
 
-  // Initialize auto-refresh from stored settings.
   function initAutoRefresh() {
     try {
       const interval = localStorage.getItem('autoRefreshInterval');
@@ -585,12 +583,21 @@
           console.error('Error getting auto refresh setting from config:', error);
         });
       }
+
+      window.addEventListener('focus', () => {
+        if (missedAutoRefresh) {
+          missedAutoRefresh = false;
+          const interval = localStorage.getItem('autoRefreshInterval');
+          if (interval && interval !== 'off') {
+            console.log('[SkyCrypt] Window focused after missed auto-refresh, reloading');
+            window.location.reload();
+          }
+        }
+      });
     } catch (error) {
       console.error('Error initializing auto refresh:', error);
     }
   }
-
-  // Profile switcher code disabled for now.
 
   function addUpdateButton(updateInfo) {
     try {
